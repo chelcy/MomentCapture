@@ -651,7 +651,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			iWidth  = clipRect.right  - clipRect.left + 1;
 			iHeight = clipRect.bottom - clipRect.top  + 1;
 
-			if(iWidth == 0 || iHeight == 0) {
+			if(iWidth < 15 || iHeight < 15) {
 				// 画像になってない, なにもしない
 				ReleaseDC(NULL, hdc);
 				DestroyWindow(hWnd);
