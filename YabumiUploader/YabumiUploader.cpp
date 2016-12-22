@@ -2,13 +2,14 @@
 //
 
 #include "stdafx.h"
-#include "YabumiUploader.h"
+#include "MomentCapture.h"
 
 // グローバル変数:
 HINSTANCE hInst;// 現在のインターフェイス
-TCHAR *szTitle        = _T("Yabumi Uploader for Windows Desktop");// タイトル バーのテキスト
+TCHAR *szTitle        = _T("MomentCapture Lite");// タイトル バーのテキスト
 TCHAR *szWindowClass  = _T("YABUMIUPLOADER");// メイン ウィンドウ クラス名
 TCHAR *szWindowClassL = _T("YABUMIUPLOADERL");// レイヤー ウィンドウ クラス名
+TCHAR *szFileDir;
 HWND hLayerWnd;
 
 int ofX, ofY;// 画面オフセット
@@ -60,6 +61,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 			break;
 		}
 	}
+
+	szFileDir = szThisPath;
 
 	// カレントディレクトリを exe と同じ場所に設定
 	SetCurrentDirectory(szThisPath);
@@ -786,162 +789,101 @@ void LastErrorMessageBox(HWND hwnd, LPTSTR lpszError)
     LocalFree(lpDisplayBuf);
 }
 
-// PNG ファイルをアップロードする.
+//デバッグファイル
+/*
+void db(const char* c) {
+	std::ofstream wfile("debug.txt");
+	wfile << c;
+	wfile.close();
+}
+*/
+
+char const *GetExportName(char*);
+
+//パス読み込み
+char* GetTargetPath() {
+	//pathファイルが存在しなければ生成
+	//std::ofstream ofile;
+	//ofile.open("path.txt", std::ios::app);
+	//存在するとき
+	std::ifstream rfile;
+	std::string rbuf;
+	char cdir[255];
+	rfile.open("path.txt", std::ios::in);
+	GetCurrentDirectory(255, (LPWSTR)cdir);
+	//読み込みエラーなら
+	if (!rfile) {
+		return NULL;
+	}
+	std::getline(rfile, rbuf);
+	//1行目が空白なら
+	if (rbuf == "") {
+		return NULL;
+	}
+	//中身があったら
+	char* cstr = new char[rbuf.size() + 1];
+	std::strcpy(cstr, rbuf.c_str());
+	return cstr;
+}
+
+// PNG ファイルを保存
 BOOL uploadFile(HWND hwnd, LPCTSTR fileName)
 {
-	const TCHAR* UPLOAD_SERVER	= _T("direct.yabumi.cc");
-	const TCHAR* UPLOAD_PATH	= _T("/api/images.txt");
-
-	const char*  sBoundary = "----BOUNDARYBOUNDARY----";// boundary
-	const char   sCrLf[]   = { 0xd, 0xa, 0x0 };// 改行(CR+LF)
-	const TCHAR* szHeader  = 
-		_T("Content-type: multipart/form-data; boundary=----BOUNDARYBOUNDARY----");
-
-	std::ostringstream	buf;// 送信メッセージ
-
-	// メッセージの構成
-	// -- "imagedata" part
-	buf << "--";
-	buf << sBoundary;
-	buf << sCrLf;
-	buf << "content-disposition: form-data; name=\"imagedata\"; filename=\"yabumi.cc\"";
-	buf << sCrLf;
-	//buf << "Content-type: image/png";	// 一応
-	//buf << sCrLf;
-	buf << sCrLf;
-
-	// 本文: PNG ファイルを読み込む
-	std::ifstream png;
-	png.open(fileName, std::ios::binary);
-	if (png.fail()) {
-		MessageBox(hwnd, _T("PNG open failed"), szTitle, MB_ICONERROR | MB_OK);
-		png.close();
+	//キャッシュファイルを用意
+	std::ifstream iim(fileName, std::ios_base::binary);
+	//出力先指定
+	std::ofstream oim(GetExportName(GetTargetPath()), std::ios_base::binary);
+	//出力
+	oim << iim.rdbuf();
+	//ディレクトリをexeがある場所へ
+	SetCurrentDirectory(szFileDir);
+	//コピーでエラったら
+	if (!(iim && oim)) {
 		return FALSE;
 	}
-	buf << png.rdbuf();// read all & append to buffer
-	png.close();
+	return TRUE;
+}
 
-	// 最後
-	buf << sCrLf;
-	buf << "--";
-	buf << sBoundary;
-	buf << "--";
-	buf << sCrLf;
+//ケタ埋め
+/*
+char const *fillZero(int num, int deg) {
+	std::ostringstream sout;
+	sout << std::setfill('0') << std::setw(deg) << num;
+	std::string s = sout.str();
+	return s.c_str();
+}*/
 
-	// メッセージ完成
-	std::string oMsg(buf.str());
-
-	// WinInet を準備 (proxy は 規定の設定を利用)
-	HINTERNET hSession    = InternetOpen(_T("YabumiUploaderForWindowsDesktop/1.3 Gyazowin/1.0"), 
-		INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
-	if(NULL == hSession) {
-		LastErrorMessageBox(hwnd, _T("Cannot configure wininet."));
-		return FALSE;
+//パスとファイル名決定
+char const *GetExportName(char* dir) {
+	//テキストバッファ用意
+	std::ostringstream buf;
+	//時間取得
+	time_t now = time(NULL);
+	struct tm *pnow = localtime(&now);
+	//もしディレクトリの指定があったら記述
+	if (dir != NULL) {
+		buf << dir;
+		buf << "\\";
 	}
-	
-	// 接続先
-	HINTERNET hConnection = InternetConnect(hSession, 
-		UPLOAD_SERVER, INTERNET_DEFAULT_HTTPS_PORT,
-		NULL, NULL, INTERNET_SERVICE_HTTP, NULL, NULL);
-	if(NULL == hConnection) {
-		LastErrorMessageBox(hwnd, _T("Cannot initiate connection."));
-		InternetCloseHandle(hSession);
-		return FALSE;
+	//指定がなかったらデスクトップ
+	else {
+		//ディレクトリをデスクトップへ
+		TCHAR szPath[MAX_PATH + 1];
+		SHGetSpecialFolderPath(NULL, szPath, CSIDL_DESKTOP, FALSE);
+		SetCurrentDirectory(szPath);
 	}
+	buf << pnow->tm_year + 1900;
+	buf << "-";
+	buf << pnow->tm_mon + 1;
+	buf << "-";
+	buf << pnow->tm_mday;
+	buf << "_";
+	buf << pnow->tm_hour;
+	buf << "-";
+	buf << pnow->tm_min;
+	buf << "-";
+	buf << pnow->tm_sec;
+	buf << ".png";
 
-	// 要求先の設定
-	HINTERNET hRequest    = HttpOpenRequest(hConnection,
-		_T("POST"), UPLOAD_PATH, NULL,
-		NULL, NULL, INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, NULL);
-	if(NULL == hRequest) {
-		LastErrorMessageBox(hwnd, _T("Cannot compose post request."));
-		InternetCloseHandle(hConnection);
-		InternetCloseHandle(hSession);
-		return FALSE;
-	}
-	
-	// 要求を送信
-	BOOL bSuccess = FALSE;
-	if (HttpSendRequest(hRequest,
-                    szHeader,
-					lstrlen(szHeader),
-                    (LPVOID)oMsg.c_str(),
-					(DWORD) oMsg.length()))
-	{
-		// 要求は成功
-		
-		DWORD resLen = 8;
-		TCHAR resCode[8];
-
-		// status code を取得
-		if(!HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_CODE, resCode, &resLen, 0))
-		{
-			LastErrorMessageBox(hwnd, _T("Cannot get status code."));
-			InternetCloseHandle(hRequest);
-			InternetCloseHandle(hConnection);
-			InternetCloseHandle(hSession);
-			return FALSE;
-		}
-
-		if (_ttoi(resCode) == 403) {
-			// 403
-			TCHAR errorBuf[200];
-			StringCchPrintf((LPTSTR)errorBuf, 200, TEXT("Cannot upload the image. Error %s (Image is too small?)"), resCode);
-			MessageBox(hwnd, errorBuf, szTitle, MB_ICONERROR | MB_OK);
-		} else if (_ttoi(resCode) != 200 && _ttoi(resCode) != 201) {
-			// upload 失敗 (status error)
-			TCHAR errorBuf[200];
-			StringCchPrintf((LPTSTR)errorBuf, 200, TEXT("Cannot upload the image. Error %s"), resCode);
-			MessageBox(hwnd, errorBuf, szTitle, MB_ICONERROR | MB_OK);
-		} else {
-			// upload succeeded
-
-			// get image url
-			DWORD urlLen = 200;
-			TCHAR imgurl[200];
-			
-			memset(imgurl, 0, urlLen*sizeof(TCHAR));
-			_tcscpy_s(imgurl, _T("Location"));
-
-			HttpQueryInfo(hRequest, HTTP_QUERY_CUSTOM, imgurl, &urlLen, 0);
-			if (GetLastError() != ERROR_HTTP_HEADER_NOT_FOUND && urlLen != 0) {
-				// クリップボードに URL をコピー
-				size_t  slen;
-				slen = _tcslen(imgurl) + 1;
-				char *cimgurl = (char *)malloc(slen * sizeof(char));
-				wcstombs_s(NULL, cimgurl, slen, imgurl, slen);
-				setClipBoardText(cimgurl);
-			}
-
-			// 結果 (URL) を読取る
-			DWORD len;
-			char  resbuf[1024];
-			std::string result;
-
-			// そんなに長いことはないけどまあ一応
-			while (InternetReadFile(hRequest, (LPVOID)resbuf, 1024, &len) && len != 0)
-			{
-				result.append(resbuf, len);
-			}
-
-			// 取得結果は NULL terminate されていないので
-			result += '\0';
-			
-			// URL を起動
-			execUrl(result.c_str()); 
-
-			bSuccess = TRUE;
-		}
-	} else {
-		// アップロード失敗...
-		LastErrorMessageBox(hwnd, _T("Cannot connect to the server."));
-	}
-
-	// ハンドルクローズ
-	InternetCloseHandle(hRequest);
-	InternetCloseHandle(hConnection);
-	InternetCloseHandle(hSession);
-
-	return bSuccess;
-
+	return buf.str().c_str();
 }

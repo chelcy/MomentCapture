@@ -53,3 +53,10 @@ using namespace Gdiplus;
 #include <string>
 #include <vector>
 
+#include <iostream>
+#include <iomanip>
+#include <shlwapi.h>
+
+#include <locale> 
+#include <codecvt> 
+#include <cstdio>

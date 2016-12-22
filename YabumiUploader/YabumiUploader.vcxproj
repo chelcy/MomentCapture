@@ -12,8 +12,9 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D07D541C-05E9-49CC-9090-4238AB392C38}</ProjectGuid>
-    <RootNamespace>YabumiUploader</RootNamespace>
+    <RootNamespace>MomentCapture</RootNamespace>
     <Keyword>Win32Proj</Keyword>
+    <ProjectName>MomentCapture</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -104,12 +105,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="YabumiUploader.h" />
+    <ClInclude Include="MomentCapture.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="YabumiUploader.ico" />
+    <Image Include="MomentCapture.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="YabumiUploader.rc" />
