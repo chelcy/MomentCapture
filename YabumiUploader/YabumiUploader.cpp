@@ -493,7 +493,6 @@ LRESULT CALLBACK LayerWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 	HPEN hPen;
 	HFONT hFont;
 
-
 	switch (message)
 	{
 	case WM_ERASEBKGND:
@@ -708,54 +707,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-// クリップボードに文字列をコピー
-VOID setClipBoardText(const char* str)
-{
-
-	HGLOBAL hText;
-	char    *pText;
-	size_t  slen;
-
-	slen  = strlen(str) + 1; // NULL
-
-	hText = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, slen * sizeof(TCHAR));
-
-	pText = (char *)GlobalLock(hText);
-	strncpy_s(pText, slen, str, slen);
-	GlobalUnlock(hText);
-	
-	// クリップボードを開く
-	OpenClipboard(NULL);
-	EmptyClipboard();
-	SetClipboardData(CF_TEXT, hText);
-	CloseClipboard();
-
-	// 解放
-	GlobalFree(hText);
-}
-
-// 指定された URL (char*) をブラウザで開く
-VOID execUrl(const char* str)
-{
-	size_t  slen;
-	size_t  dcount;
-	slen  = strlen(str) + 1; // NULL
-
-	TCHAR *wcUrl = (TCHAR *)malloc(slen * sizeof(TCHAR));
-	
-	// ワイド文字に変換
-	mbstowcs_s(&dcount, wcUrl, slen, str, slen);
-	
-	// open コマンドを実行
-	SHELLEXECUTEINFO lsw = {0};
-	lsw.cbSize = sizeof(SHELLEXECUTEINFO);
-	lsw.lpVerb = _T("open");
-	lsw.lpFile = wcUrl;
-
-	ShellExecuteEx(&lsw);
-
-	free(wcUrl);
-}
 
 void LastErrorMessageBox(HWND hwnd, LPTSTR lpszError) 
 { 
